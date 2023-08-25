@@ -1,8 +1,10 @@
 import type { LinksFunction } from "@remix-run/node";
 import { LiveReload, Outlet,Links, } from "@remix-run/react";
+
 import globalLargeStylesUrl from "~/styles/global-large.css";
 import globalMediumStylesUrl from "~/styles/global-medium.css";
 import globalStylesUrl from "~/styles/global.css";
+
 export const links: LinksFunction = () => [
   { rel: "stylesheet", href: globalStylesUrl },
   {
@@ -29,7 +31,7 @@ export default function App() {
         <Links />
       </head>
       <body>
-      <h1>Hello world</h1>
+  
         <Outlet />
         <LiveReload />
       </body>
