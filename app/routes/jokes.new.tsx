@@ -1,9 +1,10 @@
 import type { ActionArgs } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
-import { db } from "~/utils/db.server";
 import { useActionData } from "@remix-run/react";
-import { badRequest } from "~/utils/request.server";
 
+import { db } from "~/utils/db.server";
+import { badRequest } from "~/utils/request.server";
+import { requireUserId } from "~/utils/session.server";
 
 function validateJokeContent(content: string) {
   if (content.length < 10) {
@@ -17,20 +18,11 @@ function validateJokeName(name: string) {
   }
 }
 
-
 export const action = async ({ request }: ActionArgs) => {
+  const userId = await requireUserId(request);
   const form = await request.formData();
   const content = form.get("content");
   const name = form.get("name");
-  // we do this type check to be extra sure and to make TypeScript happy
-  // we'll explore validation next!
-  // if (
-  //   typeof content !== "string" ||
-  //   typeof name !== "string"
-  // ) {
-  //   throw new Error("Form not submitted correctly.");
-  // }
-
   if (
     typeof content !== "string" ||
     typeof name !== "string"
@@ -42,48 +34,48 @@ export const action = async ({ request }: ActionArgs) => {
     });
   }
 
+  const fieldErrors = {
+    content: validateJokeContent(content),
+    name: validateJokeName(name),
+  };
+  const fields = { content, name };
+  if (Object.values(fieldErrors).some(Boolean)) {
+    return badRequest({
+      fieldErrors,
+      fields,
+      formError: null,
+    });
+  }
 
- // const fields = { content, name };
-
- const fieldErrors = {
-  content: validateJokeContent(content),
-  name: validateJokeName(name),
-};
-const fields = { content, name };
-if (Object.values(fieldErrors).some(Boolean)) {
-  return badRequest({
-    fieldErrors,
-    fields,
-    formError: null,
+  const joke = await db.joke.create({
+    data: { ...fields, jokesterId: userId },
   });
-}
-
-  const joke = await db.joke.create({ data: fields });
   return redirect(`/jokes/${joke.id}`);
 };
 
-
 export default function NewJokeRoute() {
   const actionData = useActionData<typeof action>();
+
   return (
     <div>
       <p>Add your own hilarious joke</p>
       <form method="post">
         <div>
           <label>
-            Name: <input 
-             defaultValue={actionData?.fields?.name}
-            type="text"
-             name="name"
-             aria-invalid={Boolean(
-              actionData?.fieldErrors?.name
-            )}
-            aria-errormessage={
-              actionData?.fieldErrors?.name
-                ? "name-error"
-                : undefined
-            }
-             />
+            Name:{" "}
+            <input
+              defaultValue={actionData?.fields?.name}
+              name="name"
+              type="text"
+              aria-invalid={Boolean(
+                actionData?.fieldErrors?.name
+              )}
+              aria-errormessage={
+                actionData?.fieldErrors?.name
+                  ? "name-error"
+                  : undefined
+              }
+            />
           </label>
           {actionData?.fieldErrors?.name ? (
             <p
@@ -97,7 +89,9 @@ export default function NewJokeRoute() {
         </div>
         <div>
           <label>
-            Content: <textarea defaultValue={actionData?.fields?.content}
+            Content:{" "}
+            <textarea
+              defaultValue={actionData?.fields?.content}
               name="content"
               aria-invalid={Boolean(
                 actionData?.fieldErrors?.content
@@ -106,7 +100,8 @@ export default function NewJokeRoute() {
                 actionData?.fieldErrors?.content
                   ? "content-error"
                   : undefined
-              } />
+              }
+            />
           </label>
           {actionData?.fieldErrors?.content ? (
             <p
@@ -119,7 +114,7 @@ export default function NewJokeRoute() {
           ) : null}
         </div>
         <div>
-        {actionData?.formError ? (
+          {actionData?.formError ? (
             <p
               className="form-validation-error"
               role="alert"
